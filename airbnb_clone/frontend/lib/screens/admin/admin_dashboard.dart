@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../services/auth_provider.dart';
+import '../../utils/routes.dart';
+import 'package:provider/provider.dart';
 
 class AdminDashboard extends StatefulWidget {
   @override
@@ -33,11 +36,17 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
   }
 
   Future<void> _loadDashboardData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAdmin) {
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
+      return;
+    }
+
     try {
       final response = await http.get(
         Uri.parse('http://localhost/backend/admin/dashboard-stats'),
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE', // Replace with actual token
+          'Authorization': authProvider.getAuthorizationHeader() ?? '',
         },
       );
 
@@ -50,6 +59,11 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
         // Load initial data for both tabs
         _loadAgents();
         _loadProperties();
+      } else if (response.statusCode == 401) {
+        // Token expired or invalid
+        await authProvider.logout();
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load dashboard data')),
@@ -63,11 +77,12 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
   }
 
   Future<void> _loadAgents() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final response = await http.get(
         Uri.parse('http://localhost/backend/admin/agents?page=$currentAgentPage'),
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE', // Replace with actual token
+          'Authorization': authProvider.getAuthorizationHeader() ?? '',
         },
       );
 
@@ -75,6 +90,10 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
         setState(() {
           agents = List<Map<String, dynamic>>.from(json.decode(response.body)['data']['agents']);
         });
+      } else if (response.statusCode == 401) {
+        await authProvider.logout();
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,11 +103,12 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
   }
 
   Future<void> _loadProperties() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final response = await http.get(
         Uri.parse('http://localhost/backend/admin/properties?page=$currentPropertyPage'),
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE', // Replace with actual token
+          'Authorization': authProvider.getAuthorizationHeader() ?? '',
         },
       );
 
@@ -96,6 +116,10 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
         setState(() {
           properties = List<Map<String, dynamic>>.from(json.decode(response.body)['data']['properties']);
         });
+      } else if (response.statusCode == 401) {
+        await authProvider.logout();
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,11 +129,12 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
   }
 
   Future<void> _approveAgent(int agentId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final response = await http.post(
         Uri.parse('http://localhost/backend/admin/approve-agent'),
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE', // Replace with actual token
+          'Authorization': authProvider.getAuthorizationHeader() ?? '',
           'Content-Type': 'application/json',
         },
         body: json.encode({'agent_id': agentId}),
@@ -120,6 +145,10 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Agent approved successfully')),
         );
+      } else if (response.statusCode == 401) {
+        await authProvider.logout();
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,11 +158,12 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
   }
 
   Future<void> _deleteAgent(int agentId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final response = await http.delete(
         Uri.parse('http://localhost/backend/admin/delete-agent'),
         headers: {
-          'Authorization': 'Bearer YOUR_TOKEN_HERE', // Replace with actual token
+          'Authorization': authProvider.getAuthorizationHeader() ?? '',
           'Content-Type': 'application/json',
         },
         body: json.encode({'agent_id': agentId}),
@@ -144,6 +174,10 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Agent deleted successfully')),
         );
+      } else if (response.statusCode == 401) {
+        await authProvider.logout();
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +269,7 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
               setState(() {
                 searchQuery = value;
               });
-              // Implement debounced search
+              // TODO: Implement debounced search
             },
           ),
         ),
@@ -302,7 +336,7 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
               ),
             ),
             onChanged: (value) {
-              // Implement property search
+              // TODO: Implement property search
             },
           ),
         ),
@@ -365,13 +399,13 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
                     onSelected: (value) {
                       switch (value) {
                         case 'view':
-                          // Navigate to property details
+                          // TODO: Navigate to property details
                           break;
                         case 'edit':
-                          // Navigate to edit property
+                          // TODO: Navigate to edit property
                           break;
                         case 'delete':
-                          // Show delete confirmation
+                          // TODO: Show delete confirmation
                           break;
                       }
                     },
@@ -396,6 +430,16 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
     return Scaffold(
       appBar: CustomAppBar(
         title: Text('Admin Dashboard'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: () async {
+              await Provider.of<AuthProvider>(context, listen: false).logout();
+              if (!mounted) return;
+              Navigator.pushReplacementNamed(context, AppRoutes.login);
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -416,7 +460,7 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
       floatingActionButton: _tabController.index == 2
           ? FloatingActionButton(
               onPressed: () {
-                // Navigate to add property screen
+                // TODO: Navigate to add property screen
               },
               child: Icon(Icons.add),
               tooltip: 'Add Property',
