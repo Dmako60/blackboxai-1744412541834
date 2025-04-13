@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../widgets/custom_input_field.dart';
 import '../../widgets/custom_button.dart';
 import '../../services/auth_provider.dart';
+import '../../utils/routes.dart';
 import 'package:provider/provider.dart';
 
 class AdminLogin extends StatefulWidget {
@@ -18,28 +19,58 @@ class _AdminLoginState extends State<AdminLogin> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  @override
+  void initState() {
+    super.initState();
+    // Check if already authenticated as admin
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isAdmin) {
+        Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
         Uri.parse('http://localhost/backend/admin/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'email': _emailController.text,
+          'email': _emailController.text.trim(),
           'password': _passwordController.text,
         }),
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // Update auth state with admin token
-        Provider.of<AuthProvider>(context, listen: false).setAdminToken(data['token']);
-        Navigator.pushReplacementNamed(context, '/admin/dashboard');
+        
+        if (data['data']['role'] != 'admin') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Invalid credentials for admin login')),
+          );
+          return;
+        }
+
+        // Update auth state with admin token and data
+        await Provider.of<AuthProvider>(context, listen: false)
+          .setAdminToken(data['data']['token']);
+
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
       } else {
         final error = json.decode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -48,20 +79,13 @@ class _AdminLoginState extends State<AdminLogin> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred during login')),
+        SnackBar(content: Text('Connection error. Please try again.')),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   @override
@@ -77,7 +101,7 @@ class _AdminLoginState extends State<AdminLogin> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo or Brand
+                  // Logo or Icon
                   Icon(
                     Icons.admin_panel_settings,
                     size: 80,
@@ -158,7 +182,7 @@ class _AdminLoginState extends State<AdminLogin> {
                   // Back to Home
                   TextButton(
                     onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/');
+                      Navigator.pushReplacementNamed(context, AppRoutes.home);
                     },
                     child: Text('Back to Home'),
                   ),
