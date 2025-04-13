@@ -7,6 +7,8 @@ import '../screens/add_property.dart';
 import '../screens/edit_property.dart';
 import '../screens/property_details.dart';
 import '../screens/payment_page.dart';
+import '../screens/admin/admin_login.dart';
+import '../screens/admin/admin_dashboard.dart';
 import '../services/auth_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -19,6 +21,10 @@ class AppRoutes {
   static const String editProperty = '/edit_property';
   static const String propertyDetails = '/property_details';
   static const String payment = '/payment';
+  
+  // Admin routes
+  static const String adminLogin = '/admin/login';
+  static const String adminDashboard = '/admin/dashboard';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -103,6 +109,21 @@ class AppRoutes {
           settings: settings,
         );
 
+      // Admin routes
+      case adminLogin:
+        return MaterialPageRoute(builder: (_) => AdminLogin());
+
+      case adminDashboard:
+        return MaterialPageRoute(
+          builder: (context) {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            if (!auth.isAdmin) {
+              return AdminLogin();
+            }
+            return AdminDashboard();
+          },
+        );
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
@@ -163,5 +184,14 @@ class AppRoutes {
         'amount': amount,
       },
     );
+  }
+
+  // Admin navigation methods
+  static void navigateToAdminLogin(BuildContext context) {
+    Navigator.pushReplacementNamed(context, adminLogin);
+  }
+
+  static void navigateToAdminDashboard(BuildContext context) {
+    Navigator.pushReplacementNamed(context, adminDashboard);
   }
 }
